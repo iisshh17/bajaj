@@ -1,4 +1,4 @@
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import java.util.*;
@@ -7,25 +7,29 @@ import java.util.stream.Collectors;
 @RestController
 public class BfhlController {
 
-    // IMPORTANT: Change this to your actual college email
-    private final String OFFICIAL_EMAIL = "ishika1249.be23@chitkarauniversity.edu.in"; 
-    private final String GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE";
+    private final String OFFICIAL_EMAIL = System.getenv("OFFICIAL_EMAIL") != null ? 
+            System.getenv("OFFICIAL_EMAIL") : "ishika1249.be23@chitkarauniversity.edu.in";
+            
+    private final String GEMINI_API_KEY = System.getenv("GEMINI_API_KEY") != null ? 
+            System.getenv("GEMINI_API_KEY") : "AIzaSyA1qD80lJ0582TAbR2HvzSl3bGTATmDPnk";
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> healthCheck() {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("is_success", true);
-        response.put("ishika1249.be23@chitkarauniversity.edu.in", OFFICIAL_EMAIL);
+        response.put("official_email", OFFICIAL_EMAIL);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/bfhl")
     public ResponseEntity<Map<String, Object>> processBfhl(@RequestBody Map<String, Object> request) {
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("is_success", false); // Default to false
-        response.put("ishika1249.be23@chitkarauniversity.edu.in", OFFICIAL_EMAIL);
+        response.put("is_success", false); 
+        response.put("official_email", OFFICIAL_EMAIL);
 
         try {
+            if (request.size() != 1) return ResponseEntity.status(400).body(response);
+
             if (request.containsKey("fibonacci")) {
                 int n = Integer.parseInt(request.get("fibonacci").toString());
                 if (n < 0) throw new IllegalArgumentException();
@@ -59,8 +63,6 @@ public class BfhlController {
         }
     }
 
-    // --- Math Logic Methods ---
-
     private List<Integer> getFibonacci(int n) {
         List<Integer> series = new ArrayList<>();
         int a = 0, b = 1;
@@ -92,12 +94,14 @@ public class BfhlController {
     }
 
     private long findHCF(List<Integer> nums) {
+        if (nums.isEmpty()) return 0;
         long result = nums.get(0);
         for (int i = 1; i < nums.size(); i++) result = findGCD(result, nums.get(i));
         return result;
     }
 
     private long findLCM(List<Integer> nums) {
+        if (nums.isEmpty()) return 0;
         long result = nums.get(0);
         for (int i = 1; i < nums.size(); i++) {
             result = (result * nums.get(i)) / findGCD(result, nums.get(i));
@@ -105,23 +109,29 @@ public class BfhlController {
         return result;
     }
 
-    // --- AI Integration ---
-
     private String getAIResponse(String prompt) {
         try {
-            // This is a simplified call to Gemini API
             String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + GEMINI_API_KEY;
             RestTemplate restTemplate = new RestTemplate();
+            String jsonBody = "{ \"contents\": [{ \"parts\":[{\"text\": \"" + prompt + " Answer in strictly one word.\" }] }] }";
             
-            // Note: In a real app, you'd create a proper JSON request object here.
-            // For the sake of the assignment, ensure you return only a SINGLE WORD.
-            return "Mumbai"; // Replace with actual API call logic
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<String> entity = new HttpEntity<>(jsonBody, headers);
+
+            ResponseEntity<Map> apiResponse = restTemplate.postForEntity(url, entity, Map.class);
+            
+            List candidates = (List) apiResponse.getBody().get("candidates");
+            Map firstCandidate = (Map) candidates.get(0);
+            Map content = (Map) firstCandidate.get("content");
+            List parts = (List) content.get("parts");
+            Map firstPart = (Map) parts.get(0);
+            
+            return firstPart.get("text").toString().trim().replaceAll("[^a-zA-Z]", ""); 
         } catch (Exception e) {
             return "Error";
         }
     }
-
-    // --- Utility ---
 
     private List<Integer> castToIntegerList(Object obj) {
         return ((List<?>) obj).stream()
