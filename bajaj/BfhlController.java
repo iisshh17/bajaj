@@ -17,7 +17,7 @@ public class BfhlController {
     public ResponseEntity<Map<String, Object>> healthCheck() {
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("is_success", true);
-        response.put("official_email", OFFICIAL_EMAIL);
+        response.put("official_email", "ishika1249.be23@chitkarauniversity.edu.in");
         return ResponseEntity.ok(response);
     }
 
